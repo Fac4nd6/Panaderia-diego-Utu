@@ -1,0 +1,140 @@
+.page:has(.auth) {
+    display: grid;
+    place-items: center;
+    padding-block: 24px;
+}
+
+.page:has(.auth) .auth {
+    width: min(100%, 480px);
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 34px;
+    border: 1px solid rgba(139, 94, 60, 0.2);
+    border-top: 5px solid var(--color-primary);
+    border-radius: 6px;
+    background: #fffdf9;
+    box-shadow: 0 14px 34px rgba(51, 51, 51, 0.1);
+    animation: auth-enter 380ms ease-out both;
+}
+
+.page:has(.auth) .auth h1 {
+    margin: 0 0 24px;
+    color: var(--color-text);
+    font: 700 36px/1.1 var(--font-title);
+}
+
+.page:has(.auth) .auth h1::before {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--color-primary);
+    content: "CUENTA DON DIEGO";
+    font: 700 11px/1.3 var(--font-body);
+}
+
+.page:has(.auth) .auth .stack {
+    width: 100%;
+    max-width: none;
+    gap: 17px;
+}
+
+.page:has(.auth) .auth label {
+    gap: 7px;
+    color: var(--color-text);
+    font: 600 14px/1.4 var(--font-body);
+}
+
+.page:has(.auth) .auth input {
+    min-height: 46px;
+    padding: 11px 12px;
+    border: 1px solid #d9cbbb;
+    border-radius: 4px;
+    background: #fffefa;
+    font: 15px var(--font-body);
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.page:has(.auth) .auth input:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(217, 79, 79, 0.16);
+}
+
+.page:has(.auth) .auth button {
+    width: 100%;
+    min-height: 46px;
+    margin-top: 3px;
+    border-radius: 4px;
+    background: var(--color-primary);
+    box-shadow: 0 4px 0 var(--color-secondary);
+    font: 700 15px/1.2 var(--font-body);
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.page:has(.auth) .auth button:hover {
+    transform: translateY(-2px);
+    background: var(--color-secondary);
+    box-shadow: 0 6px 0 #761919;
+}
+
+.page:has(.auth) .auth > p:last-child {
+    margin: 22px 0 0;
+    color: #655b56;
+    font: 14px/1.6 var(--font-body);
+    text-align: center;
+}
+
+.page:has(.auth) .auth a {
+    color: var(--color-secondary);
+    font-weight: 700;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.page:has(.auth) .auth a:hover {
+    color: var(--color-primary);
+}
+
+.page:has(.auth) .auth .notice {
+    margin-bottom: 17px;
+    border-radius: 3px;
+    font: 14px/1.5 var(--font-body);
+}
+
+@keyframes auth-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 600px) {
+    .page:has(.auth) {
+        padding-block: 10px;
+    }
+
+    .page:has(.auth) .auth {
+        padding: 27px 22px;
+    }
+
+    .page:has(.auth) .auth h1 {
+        font-size: 32px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page:has(.auth) .auth,
+    .page:has(.auth) .auth input,
+    .page:has(.auth) .auth button {
+        animation: none;
+        transition: none;
+    }
+
+    .page:has(.auth) .auth button:hover {
+        transform: none;
+    }
+}
