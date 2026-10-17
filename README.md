@@ -35,7 +35,7 @@ No incluye carrito de compras.
 1. Copia la carpeta del proyecto dentro de la carpeta `htdocs` de XAMPP y conserva el nombre `DonDiego-Panaderia-Final-simple`.
 2. Abre el panel de XAMPP e inicia Apache y MySQL.
 3. Entra a phpMyAdmin desde `http://localhost/phpmyadmin`.
-4. En phpMyAdmin, abre la pestaña **Importar**, selecciona `database/don_diego.sql` y ejecútalo. El archivo crea la base `don_diego_simple`, sus tablas y productos iniciales.
+4. En phpMyAdmin, abre la pestaña **Importar**, selecciona `database/don_diego_simple.sql` y ejecútalo. El archivo crea la base `don_diego_simple`, sus tablas y productos iniciales.
 5. Revisa `config/Database.php`. La configuracion inicial usa el servidor `localhost`, el usuario `root`, contraseña vacia y la base `don_diego_simple`. Cambia usuario o contraseña si tu instalacion de MySQL usa otros datos.
 
 ## Configuracion del correo
@@ -67,4 +67,4 @@ UPDATE usuarios SET rol = 'admin' WHERE email = 'TU_CORREO';
 
 ## Autores
 
-Los nombres de los integrantes no estan documentados en los archivos del proyecto.
+Los nombres de los integrantes son: Facundo Leites, Thiago Cano, Constanza Ortiz, Matias Hernandez
