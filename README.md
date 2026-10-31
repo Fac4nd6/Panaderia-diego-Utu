@@ -41,27 +41,25 @@ No incluye carrito de compras.
 
 ## Configuracion del correo
 
-Configura las variables de entorno `BREVO_API_KEY` y `BREVO_FROM_EMAIL` en Apache. Opcionalmente, define `BREVO_FROM_NAME` (por defecto, `Don Diego Panaderia`). La clave debe ser una clave API de Brevo, no la clave SMTP ni la contraseña de la cuenta. No compartas ni publiques las credenciales.
+La configuracion actual del envio de correos esta implementada directamente en `config/Mailer.php`. El proyecto usa Brevo y realiza una llamada HTTPS al endpoint `https://api.brevo.com/v3/smtp/email` con la clave API y el remitente definidos dentro del archivo:
 
-En XAMPP puedes declararlas en la configuracion de Apache, dentro del bloque del sitio:
-
-```apache
-SetEnv BREVO_API_KEY "TU_CLAVE_API"
-SetEnv BREVO_FROM_EMAIL "TU_REMITENTE_VERIFICADO"
-SetEnv BREVO_FROM_NAME "Don Diego Panaderia"
+```php
+$apiKey = 'TU_CLAVE_API_DE_BREVO';
+$remitente = 'tu-correo-verificado@dominio.com';
+$nombreRemitente = 'Don Diego Panaderia';
 ```
 
-Usa una clave API completa de Brevo y un remitente verificado. La clave truncada o parcial no sirve: no la completes dentro del codigo. Debes configurar la clave completa manualmente en Apache, fuera del repositorio, y reiniciar Apache. El envio se realiza por HTTPS a `https://api.brevo.com/v3/smtp/email`.
+En este momento no se leen variables de entorno de Apache ni de `.env`; por eso debes editar `config/Mailer.php` para cambiar la clave y el correo remitente. La clave debe ser la API key completa de Brevo, no la clave SMTP ni la contraseña de la cuenta. El correo remitente debe ser una direccion verificada en Brevo para que el envio funcione correctamente. No compartas ni publiques esa informacion dentro del repositorio.
 
-## Ejecucion y comprobacion
-
-Para probar el servicio sin pasar por el registro, exporta `BREVO_API_KEY` y `BREVO_FROM_EMAIL` en la sesion de terminal, reemplaza el destinatario por una direccion que controles y ejecuta:
+Si quieres probar el servicio sin pasar por el registro, reemplaza el destinatario por una direccion que controles y ejecuta:
 
 ```sh
 php -r 'require "config/Mailer.php"; $ok = enviarCorreoTransaccional("DESTINATARIO_DE_PRUEBA", "Prueba", "Prueba de correo", "<p>Prueba independiente</p>", "Prueba independiente"); echo $ok ? "Aceptado por Brevo\n" : "Fallo; revisa el log de PHP\n"; exit($ok ? 0 : 1);'
 ```
 
 Un resultado exitoso requiere una respuesta 2xx con `messageId`, que confirma que Brevo acepto el mensaje para procesarlo; no garantiza que llegue a la bandeja de entrada. Si falla, el log indica si fue por configuracion, conexion, autenticacion, limites o rechazo de la API, sin imprimir la clave. Despues puedes probar registro/verificacion, reenvio y recuperacion desde la aplicacion. El restablecimiento de contrasena consume el enlace enviado durante la recuperacion; no genera un correo adicional.
+
+## Ejecucion y comprobacion
 
 El rol de una cuenta nueva es `cliente`. Para habilitar las pantallas de administracion, cambia su rol desde phpMyAdmin usando el correo con el que te registraste:
 
