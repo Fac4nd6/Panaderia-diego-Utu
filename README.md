@@ -20,13 +20,14 @@ No incluye carrito de compras.
 
 - PHP y MySQL/MariaDB.
 - HTML y CSS.
-- PHPMailer para enviar correos por SMTP de Brevo.
+- cURL para enviar correos por la API transaccional de Brevo.
 - XAMPP para ejecutar Apache y MySQL localmente.
 
 ## Requisitos
 
 - XAMPP con Apache, MySQL y PHP 8.1 o posterior.
 - Extensiones PHP `mysqli` y `fileinfo` habilitadas.
+- Extension PHP `curl` habilitada para el envio de correo.
 - Un navegador web.
 - Una cuenta de Brevo solo si se quieren probar los correos.
 
@@ -40,24 +41,27 @@ No incluye carrito de compras.
 
 ## Configuracion del correo
 
-Completa `config/datos.php` con los datos SMTP de tu cuenta de Brevo. No compartas ese archivo ni publiques sus credenciales.
+Configura las variables de entorno `BREVO_API_KEY` y `BREVO_FROM_EMAIL` en Apache. Opcionalmente, define `BREVO_FROM_NAME` (por defecto, `Don Diego Panaderia`). La clave debe ser una clave API de Brevo, no la clave SMTP ni la contraseña de la cuenta. No compartas ni publiques las credenciales.
 
-```php
-<?php
+En XAMPP puedes declararlas en la configuracion de Apache, dentro del bloque del sitio:
 
-$smtpHost = 'smtp-relay.brevo.com';
-$smtpPort = 587;
-$smtpUsername = 'TU_USUARIO_SMTP';
-$smtpPassword = 'TU_CLAVE_SMTP';
-$smtpFrom = 'TU_CORREO_REMITENTE';
-$smtpFromName = 'Don Diego Panaderia';
+```apache
+SetEnv BREVO_API_KEY "TU_CLAVE_API"
+SetEnv BREVO_FROM_EMAIL "TU_REMITENTE_VERIFICADO"
+SetEnv BREVO_FROM_NAME "Don Diego Panaderia"
 ```
 
-Usa tu usuario y clave SMTP de Brevo, y un correo remitente habilitado en esa cuenta. El sitio utiliza SMTP; no es necesario instalar PHPMailer porque ya esta incluido en `vendor/phpmailer`.
+Usa una clave API completa de Brevo y un remitente verificado. La clave truncada o parcial no sirve: no la completes dentro del codigo. Debes configurar la clave completa manualmente en Apache, fuera del repositorio, y reiniciar Apache. El envio se realiza por HTTPS a `https://api.brevo.com/v3/smtp/email`.
 
 ## Ejecucion y comprobacion
 
-Abre `http://localhost/DonDiego-Panaderia-Final-simple/`. Debe mostrarse el catalogo. Prueba crear un pedido y luego registra una cuenta para comprobar el inicio de sesion. Para probar la verificacion y recuperacion de cuenta, configura primero Brevo y revisa el correo recibido.
+Para probar el servicio sin pasar por el registro, exporta `BREVO_API_KEY` y `BREVO_FROM_EMAIL` en la sesion de terminal, reemplaza el destinatario por una direccion que controles y ejecuta:
+
+```sh
+php -r 'require "config/Mailer.php"; $ok = enviarCorreoTransaccional("DESTINATARIO_DE_PRUEBA", "Prueba", "Prueba de correo", "<p>Prueba independiente</p>", "Prueba independiente"); echo $ok ? "Aceptado por Brevo\n" : "Fallo; revisa el log de PHP\n"; exit($ok ? 0 : 1);'
+```
+
+Un resultado exitoso requiere una respuesta 2xx con `messageId`, que confirma que Brevo acepto el mensaje para procesarlo; no garantiza que llegue a la bandeja de entrada. Si falla, el log indica si fue por configuracion, conexion, autenticacion, limites o rechazo de la API, sin imprimir la clave. Despues puedes probar registro/verificacion, reenvio y recuperacion desde la aplicacion. El restablecimiento de contrasena consume el enlace enviado durante la recuperacion; no genera un correo adicional.
 
 El rol de una cuenta nueva es `cliente`. Para habilitar las pantallas de administracion, cambia su rol desde phpMyAdmin usando el correo con el que te registraste:
 

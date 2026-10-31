@@ -1,44 +1,106 @@
 <?php
 
-require_once __DIR__ . '/../vendor/phpmailer/Exception.php';
-require_once __DIR__ . '/../vendor/phpmailer/PHPMailer.php';
-require_once __DIR__ . '/../vendor/phpmailer/SMTP.php';
-
-require_once __DIR__ . '/datos.php';
-
 function enviarCorreoTransaccional($destinatario, $nombre, $asunto, $html, $texto)
 {
-    global $smtpHost, $smtpPort, $smtpUsername, $smtpPassword, $smtpFrom, $smtpFromName;
+   // CONFIGURACIÓN DE BREVO
+$apiKey = 'api';
+$remitente = 'fac4nd6@gmail.com';
+$nombreRemitente = 'Don Diego Panaderia';
 
-    if (!$smtpHost || !$smtpUsername || !$smtpPassword || !$smtpFrom) {
-        error_log('Completa la configuracion SMTP en config/datos.php.');
+    if ($apiKey === '' || !filter_var($remitente, FILTER_VALIDATE_EMAIL)) {
+        error_log('Configuracion de la API de Brevo incompleta o invalida.');
         return false;
     }
 
-    $correo = new PHPMailer\PHPMailer\PHPMailer(true);
-
-    try {
-        $correo->isSMTP();
-        $correo->Host = $smtpHost;
-        $correo->SMTPAuth = true;
-        $correo->Username = $smtpUsername;
-        $correo->Password = $smtpPassword;
-        $correo->Port = (int) $smtpPort;
-        $correo->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $correo->CharSet = 'UTF-8';
-        $correo->setFrom($smtpFrom, $smtpFromName);
-        $correo->addAddress($destinatario, $nombre);
-        $correo->isHTML(true);
-        $correo->Subject = $asunto;
-        $correo->Body = $html;
-        $correo->AltBody = $texto;
-        $correo->send();
-
-        return true;
-    } catch (PHPMailer\PHPMailer\Exception $error) {
-        error_log('No se pudo enviar el correo transaccional.');
+    if (!filter_var($destinatario, FILTER_VALIDATE_EMAIL)) {
+        error_log('Destinatario invalido; no se envio el correo transaccional.');
         return false;
     }
+
+    $payload = json_encode([
+        'sender' => [
+            'name' => $nombreRemitente,
+            'email' => $remitente,
+        ],
+        'to' => [[
+            'email' => $destinatario,
+            'name' => $nombre,
+        ]],
+        'subject' => $asunto,
+        'htmlContent' => $html,
+        'textContent' => $texto,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    if ($payload === false) {
+        error_log('No se pudo preparar el correo para la API de Brevo.');
+        return false;
+    }
+
+    if (!function_exists('curl_init')) {
+        error_log('No se puede enviar correo: la extension PHP cURL no esta habilitada.');
+        return false;
+    }
+
+    $curl = curl_init('https://api.brevo.com/v3/smtp/email');
+    if ($curl === false) {
+        error_log('No se pudo inicializar cURL para la API de Brevo.');
+        return false;
+    }
+
+    $opcionesConfiguradas = curl_setopt_array($curl, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_HTTPHEADER => [
+            'accept: application/json',
+            'api-key: ' . $apiKey,
+            'content-type: application/json',
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 20,
+    ]);
+    if (!$opcionesConfiguradas) {
+        curl_close($curl);
+        error_log('No se pudo configurar la solicitud HTTP para la API de Brevo.');
+        return false;
+    }
+
+    $respuesta = curl_exec($curl);
+    $estadoHttp = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    $errorCurl = curl_error($curl);
+    curl_close($curl);
+
+    if ($respuesta === false) {
+        $detalle = str_replace($apiKey, '[redactado]', $errorCurl);
+        $detalle = preg_replace('/[\r\n]+/', ' ', $detalle);
+        error_log('Fallo de conexion con la API de Brevo: ' . $detalle);
+        return false;
+    }
+
+    $datosRespuesta = json_decode($respuesta, true);
+    if ($estadoHttp < 200 || $estadoHttp >= 300) {
+        $codigoApi = is_array($datosRespuesta) && is_string($datosRespuesta['code'] ?? null)
+            ? $datosRespuesta['code']
+            : '';
+        $mensajeApi = is_array($datosRespuesta) && is_string($datosRespuesta['message'] ?? null)
+            ? $datosRespuesta['message']
+            : '';
+        $detalle = trim(implode(' ', array_filter([$codigoApi, $mensajeApi])));
+        $detalle = str_replace(array_filter([$apiKey, $remitente, $destinatario]), '[redactado]', $detalle);
+        $detalle = substr(preg_replace('/[\r\n\t]+/', ' ', $detalle), 0, 500);
+        error_log('La API de Brevo rechazo el correo (HTTP ' . $estadoHttp . '). ' . $detalle);
+        return false;
+    }
+
+    $messageId = is_array($datosRespuesta) && is_string($datosRespuesta['messageId'] ?? null)
+        ? trim($datosRespuesta['messageId'])
+        : '';
+    if ($messageId === '') {
+        error_log('Brevo respondio HTTP ' . $estadoHttp . ' sin un messageId; no se confirma la aceptacion del correo.');
+        return false;
+    }
+
+    return true;
 }
 
 function enviarCorreoRecuperacion($destinatario, $nombre, $enlace)
