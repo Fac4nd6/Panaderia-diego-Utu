@@ -69,4 +69,7 @@ UPDATE usuarios SET rol = 'admin' WHERE email = 'TU_CORREO';
 
 ## Autores
 
-Los nombres de los integrantes no estan documentados en los archivos del proyecto.
+Facundo Leites
+Thiago Cano 
+Constanza Ortiz 
+Matias Hernandez
