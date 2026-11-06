@@ -37,7 +37,7 @@ class Usuario
                 token_verificacion, token_verificacion_expira, ultimo_reenvio_verificacion
                ) VALUES (?, ?, ?, 'cliente', 0, ?, DATE_ADD(NOW(), INTERVAL 1 DAY), NOW())"
         );
-           $stmt->bind_param('ssss', $nombre, $email, $hash, $tokenVerificacion);
+        $stmt->bind_param('ssss', $nombre, $email, $hash, $tokenVerificacion);
 
         // La dirección es única; un correo duplicado devuelve false al controlador.
         if (!$stmt->execute()) {

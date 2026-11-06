@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $enviado = enviarCorreoVerificacion($email, $nombre, $enlace);
                 $mensaje = $enviado
                     ? 'Tu cuenta fue creada. Revisa tu correo para verificar la direccion y poder ingresar.'
-                    : 'Tu cuenta fue creada, pero no pudimos enviar el correo. Revisa la configuracion SMTP o solicita otro enlace.';
+                    : 'Tu cuenta fue creada, pero no pudimos enviar el correo. Revisa la configuracion del servicio de correo o solicita otro enlace.';
             } else {
                 $error = 'Ese correo ya esta registrado o no se pudo crear la cuenta.';
             }
@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'La solicitud vencio. Recarga la pagina e intenta nuevamente.';
         }
 
-        $mensaje = 'Si la direccion corresponde a una cuenta pendiente, recibiras un enlace si se puede enviar ahora. Revisa tu correo en un minuto.';
+        $mensaje = 'No podemos confirmar el envio. Si la direccion corresponde a una cuenta pendiente y no recibes el enlace, intenta nuevamente mas tarde o contacta con soporte.';
     }
 
     if ($accion === 'verificar') {
@@ -155,8 +155,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // El mismo mensaje evita revelar si una dirección está registrada.
-        $mensaje = 'Si el correo esta registrado, recibiras un enlace para restablecer la contrasena.';
+        // El mismo mensaje evita revelar si una dirección está registrada o si el envío falló.
+        $mensaje = 'No podemos confirmar el envio. Si el correo esta registrado y no recibes el enlace, intenta nuevamente mas tarde o contacta con soporte.';
     }
 
     if ($accion === 'restablecer') {
