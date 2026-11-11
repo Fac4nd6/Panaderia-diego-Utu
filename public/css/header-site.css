@@ -1,0 +1,85 @@
+.site-header {
+    box-shadow: 0 3px 0 var(--color-secondary);
+}
+
+.site-header nav {
+    align-items: center;
+    gap: clamp(12px, 2vw, 24px);
+}
+
+.site-header .brand {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.site-header nav a {
+    position: relative;
+    padding: 10px 2px;
+    color: var(--color-background);
+    font: 700 14px/1.2 var(--font-body);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 160ms ease;
+}
+
+.site-header nav a::after {
+    position: absolute;
+    right: 0;
+    bottom: 3px;
+    left: 0;
+    height: 2px;
+    background: var(--color-background);
+    content: "";
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 180ms ease;
+}
+
+.site-header nav a:hover {
+    color: #fff;
+    text-decoration: none;
+}
+
+.site-header nav a:hover::after,
+.site-header nav a:focus-visible::after {
+    transform: scaleX(1);
+}
+
+.site-header nav a:focus-visible,
+.site-header .brand:focus-visible {
+    outline: 2px solid var(--color-background);
+    outline-offset: 4px;
+}
+
+.site-header .brand img {
+    transition: transform 180ms ease;
+}
+
+.site-header .brand:hover img {
+    transform: scale(1.06);
+}
+
+@media (max-width: 700px) {
+    .site-header nav {
+        gap: 4px 16px;
+    }
+}
+
+@media (min-width: 701px) and (max-width: 900px) {
+    .site-header nav {
+        flex-wrap: nowrap;
+        gap: 9px;
+    }
+
+    .site-header nav a {
+        font-size: 13px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .site-header nav a,
+    .site-header nav a::after,
+    .site-header .brand img {
+        transition: none;
+    }
+}
