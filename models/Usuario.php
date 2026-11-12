@@ -4,325 +4,181 @@ class Usuario
 {
     private $db;
 
-
-    // CONSTRUCTOR
     public function __construct($db)
     {
         $this->db = $db;
     }
 
-
-    // OBTENER USUARIO POR ID
-    public function obtenerPorId($id)
+    // Busca la cuenta por correo y verifica su contraseña cifrada.
+    public function iniciarSesion($email, $password)
     {
-        $sql = "
-            SELECT
-                id,
-                nombre_completo,
-                nombre_comercio,
-                email,
-                telefono,
-                direccion,
-                password,
-                rol,
-                fecha_registro,
-                email_verificado
-            FROM usuarios
-            WHERE id = ?
-            LIMIT 1
-        ";
-
-        $stmt = $this->db->prepare($sql);
-
-        if (!$stmt) {
-            die("Error en obtenerPorId: "
-                . $this->db->error);
-        }
-
-        $stmt->bind_param("i", $id);
-
-        $stmt->execute();
-
-        $resultado = $stmt->get_result();
-
-        $usuario = $resultado->fetch_assoc();
-
-        $stmt->close();
-
-        return $usuario;
-    }
-
-
-    // OBTENER USUARIO POR EMAIL
-    public function obtenerPorEmail($email)
-    {
-        $sql = "
-            SELECT
-                id,
-                nombre_completo,
-                nombre_comercio,
-                email,
-                telefono,
-                direccion,
-                password,
-                rol,
-                fecha_registro,
-                email_verificado
-            FROM usuarios
-            WHERE email = ?
-            LIMIT 1
-        ";
-
-        $stmt = $this->db->prepare($sql);
-
-        if (!$stmt) {
-            die("Error en obtenerPorEmail: "
-                . $this->db->error);
-        }
-
-        $stmt->bind_param("s", $email);
-
-        $stmt->execute();
-
-        $resultado = $stmt->get_result();
-
-        $usuario = $resultado->fetch_assoc();
-
-        $stmt->close();
-
-        return $usuario;
-    }
-
-
-    // ACTUALIZAR DATOS DEL USUARIO
-    public function actualizarDatos(
-        $id,
-        $nombreCompleto,
-        $nombreComercio,
-        $telefono,
-        $direccion
-    ) {
-
-        $sql = "
-            UPDATE usuarios
-            SET
-                nombre_completo = ?,
-                nombre_comercio = ?,
-                telefono = ?,
-                direccion = ?
-            WHERE id = ?
-        ";
-
-        $stmt = $this->db->prepare($sql);
-
-        if (!$stmt) {
-            die("Error en actualizarDatos: "
-                . $this->db->error);
-        }
-
-        $stmt->bind_param(
-            "ssssi",
-            $nombreCompleto,
-            $nombreComercio,
-            $telefono,
-            $direccion,
-            $id
+        $stmt = $this->db->prepare(
+            'SELECT id, nombre, password, rol, email_verificado
+             FROM usuarios
+             WHERE email = ?
+             LIMIT 1'
         );
-
-        $resultado = $stmt->execute();
-
-        $stmt->close();
-
-        return $resultado;
-    }
-
-
-    // ACTUALIZAR DATOS DE CONTACTO
-    public function actualizarContacto(
-        $id,
-        $telefono,
-        $direccion
-    ) {
-
-        $sql = "
-            UPDATE usuarios
-            SET
-                telefono = ?,
-                direccion = ?
-            WHERE id = ?
-        ";
-
-        $stmt = $this->db->prepare($sql);
-
-        if (!$stmt) {
-            die("Error en actualizarContacto: "
-                . $this->db->error);
-        }
-
-        $stmt->bind_param(
-            "ssi",
-            $telefono,
-            $direccion,
-            $id
-        );
-
-        $resultado = $stmt->execute();
-
-        $stmt->close();
-
-        return $resultado;
-    }
-
-
-    // COMPROBAR SI EXISTE EMAIL
-    public function existeEmail($email)
-    {
-        $sql = "
-            SELECT id
-            FROM usuarios
-            WHERE email = ?
-            LIMIT 1
-        ";
-
-        $stmt = $this->db->prepare($sql);
-
-        if (!$stmt) {
-            die("Error en existeEmail: "
-                . $this->db->error);
-        }
-
-        $stmt->bind_param("s", $email);
-
+        $stmt->bind_param('s', $email);
         $stmt->execute();
-
-        $resultado = $stmt->get_result();
-
-        $existe = $resultado->num_rows > 0;
-
+        $usuario = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        return $existe;
+        return $usuario && password_verify($password, $usuario['password'])
+            ? $usuario
+            : null;
     }
 
-
-    // OBTENER TODOS LOS USUARIOS
-    public function obtenerTodos()
+    public function registrar($nombre, $email, $password, $tokenVerificacion)
     {
-        $sql = "
-            SELECT
-                id,
-                nombre_completo,
-                nombre_comercio,
-                email,
-                telefono,
-                direccion,
-                rol,
-                fecha_registro,
-                email_verificado
-            FROM usuarios
-            ORDER BY id DESC
-        ";
+        $hash = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $this->db->prepare(
+            "INSERT INTO usuarios (
+                nombre, email, password, rol, email_verificado,
+                token_verificacion, token_verificacion_expira, ultimo_reenvio_verificacion
+               ) VALUES (?, ?, ?, 'cliente', 0, ?, DATE_ADD(NOW(), INTERVAL 1 DAY), NOW())"
+        );
+           $stmt->bind_param('ssss', $nombre, $email, $hash, $tokenVerificacion);
 
-        $resultado = $this->db->query($sql);
-
-        if (!$resultado) {
-            die("Error en obtenerTodos: "
-                . $this->db->error);
-        }
-
-        return $resultado->fetch_all(MYSQLI_ASSOC);
-    }
-
-    public function obtenerClientes($busqueda = '', $rol = 'cliente')
-    {
-        $sql = "
-            SELECT
-                id,
-                nombre_completo,
-                nombre_comercio,
-                email,
-                telefono,
-                rol,
-                fecha_registro
-            FROM usuarios
-            WHERE rol IN ('cliente', 'empleado', 'admin')
-        ";
-
-        $parametroBusqueda = '%' . $busqueda . '%';
-        $parametros = [];
-        $tipos = '';
-
-        if ($rol !== 'todos') {
-            $sql .= ' AND rol = ?';
-            $parametros[] = $rol;
-            $tipos .= 's';
-        }
-
-        if ($busqueda !== '') {
-            $sql .= "
-                AND (
-                    nombre_completo LIKE ?
-                    OR email LIKE ?
-                    OR telefono LIKE ?
-                )
-            ";
-            $parametros[] = $parametroBusqueda;
-            $parametros[] = $parametroBusqueda;
-            $parametros[] = $parametroBusqueda;
-            $tipos .= 'sss';
-        }
-
-        $sql .= ' ORDER BY nombre_completo ASC';
-
-        $stmt = $this->db->prepare($sql);
-
-        if (!$stmt) {
-            return [];
-        }
-
-        if (!empty($parametros)) {
-            $stmt->bind_param($tipos, ...$parametros);
-        }
-
+        // La dirección es única; un correo duplicado devuelve false al controlador.
         if (!$stmt->execute()) {
             $stmt->close();
-            return [];
+            return null;
         }
 
-        $clientes = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $usuario = [
+            'id' => $stmt->insert_id,
+            'nombre' => $nombre
+        ];
         $stmt->close();
 
-        return $clientes;
+        return $usuario;
     }
 
-    // ACTUALIZAR ROL
-    public function actualizarRol($id, $rol)
+    // Consultas y cambios del proceso de recuperación de contraseña.
+    public function buscarPorEmail($email)
     {
-        $sql = "
-            UPDATE usuarios
-            SET rol = ?
-            WHERE id = ?
-        ";
-
-        $stmt = $this->db->prepare($sql);
-
-        if (!$stmt) {
-            die("Error en actualizarRol: "
-                . $this->db->error);
-        }
-
-        $stmt->bind_param(
-            "si",
-            $rol,
-            $id
+        $stmt = $this->db->prepare(
+            'SELECT id, nombre
+             FROM usuarios
+             WHERE email = ?
+             LIMIT 1'
         );
-
-        $resultado = $stmt->execute();
-
+        $stmt->bind_param('s', $email);
+        $stmt->execute();
+        $usuario = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        return $resultado;
+        return $usuario;
     }
 
-    
+    public function guardarTokenRecuperacion($id, $tokenHash, $expira)
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE usuarios
+             SET token_recuperacion = ?, token_expira = ?
+             WHERE id = ?'
+        );
+        $stmt->bind_param('ssi', $tokenHash, $expira, $id);
+        $guardado = $stmt->execute();
+        $stmt->close();
+
+        return $guardado;
+    }
+
+    public function buscarTokenRecuperacion($tokenHash)
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id
+             FROM usuarios
+             WHERE token_recuperacion = ? AND token_expira > NOW()
+             LIMIT 1'
+        );
+        $stmt->bind_param('s', $tokenHash);
+        $stmt->execute();
+        $usuario = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        return $usuario;
+    }
+
+    public function actualizarPassword($id, $password)
+    {
+        $hash = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $this->db->prepare(
+            'UPDATE usuarios
+             SET password = ?, token_recuperacion = NULL, token_expira = NULL
+             WHERE id = ?'
+        );
+        $stmt->bind_param('si', $hash, $id);
+        $actualizado = $stmt->execute();
+        $stmt->close();
+
+        return $actualizado;
+    }
+
+    public function buscarPendienteVerificacion($email)
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id, nombre, email
+             FROM usuarios
+             WHERE email = ? AND email_verificado = 0
+             LIMIT 1'
+        );
+        $stmt->bind_param('s', $email);
+        $stmt->execute();
+        $usuario = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        return $usuario;
+    }
+
+    public function actualizarTokenVerificacion($id, $tokenHash)
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE usuarios
+             SET token_verificacion = ?, token_verificacion_expira = DATE_ADD(NOW(), INTERVAL 1 DAY),
+                 ultimo_reenvio_verificacion = NOW()
+             WHERE id = ? AND email_verificado = 0
+               AND (ultimo_reenvio_verificacion IS NULL
+                    OR ultimo_reenvio_verificacion <= DATE_SUB(NOW(), INTERVAL 1 MINUTE))'
+        );
+        $stmt->bind_param('si', $tokenHash, $id);
+        $actualizado = $stmt->execute() && $stmt->affected_rows === 1;
+        $stmt->close();
+
+        return $actualizado;
+    }
+
+    public function buscarTokenVerificacion($tokenHash)
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id
+             FROM usuarios
+             WHERE token_verificacion = ? AND token_verificacion_expira > NOW()
+               AND email_verificado = 0
+             LIMIT 1'
+        );
+        $stmt->bind_param('s', $tokenHash);
+        $stmt->execute();
+        $usuario = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        return $usuario;
+    }
+
+    public function verificarCorreo($tokenHash)
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE usuarios
+             SET email_verificado = 1, token_verificacion = NULL,
+                 token_verificacion_expira = NULL
+             WHERE token_verificacion = ? AND token_verificacion_expira > NOW()
+               AND email_verificado = 0'
+        );
+        $stmt->bind_param('s', $tokenHash);
+        $verificado = $stmt->execute() && $stmt->affected_rows === 1;
+        $stmt->close();
+
+        return $verificado;
+    }
 }

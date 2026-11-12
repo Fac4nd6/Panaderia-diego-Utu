@@ -1,23 +1,18 @@
 <?php
 
-// Configura una sesión segura para el usuario.
-require_once __DIR__ . '/Url.php';
-
 function iniciar_sesion_segura()
 {
-    if (session_status() !== PHP_SESSION_NONE) {
+    if (session_status() === PHP_SESSION_ACTIVE) {
         return;
     }
 
     $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
 
-    ini_set('session.use_strict_mode', '1');
+    // La sesión mantiene al usuario autenticado y limita el acceso por rol.
     session_set_cookie_params([
         'httponly' => true,
         'secure' => $https,
         'samesite' => 'Lax'
     ]);
-
     session_start();
 }
-

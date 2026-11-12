@@ -1,889 +1,108 @@
 <?php
 
-// SESIÓN
 require_once __DIR__ . '/../config/Session.php';
+require_once __DIR__ . '/../config/Database.php';
+require_once __DIR__ . '/../config/Url.php';
+require_once __DIR__ . '/../models/Producto.php';
 
 iniciar_sesion_segura();
-
-// CSRF PARA GESTIÓN DE ROLES
-function csrf_token()
-{
-    iniciar_sesion_segura();
-
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
-
-    return $_SESSION['csrf_token'];
-}
-
-
-function verificar_csrf()
-{
-    iniciar_sesion_segura();
-
-    $token = $_POST['csrf_token'] ?? '';
-
-    if (
-        empty($token) ||
-        empty($_SESSION['csrf_token']) ||
-        !hash_equals($_SESSION['csrf_token'], $token)
-    ) {
-        http_response_code(403);
-
-        exit('Token CSRF inválido.');
-    }
-}
-
-// COMPROBAR SESIÓN
-if (!isset($_SESSION['usuario_id'])) {
-
-    header(
-        'Location: ' . url('/login')
-    );
-
-    exit;
-}
-
-
-// COMPROBAR QUE SEA ADMIN
-if (
-    !isset($_SESSION['usuario_rol']) ||
-    $_SESSION['usuario_rol'] !== 'admin'
-) {
-
+if (($_SESSION['usuario_rol'] ?? '') !== 'admin') {
     http_response_code(403);
-
-    $codigoError = 404;
-    $tituloError = 'Página no encontrada';
-    $descripcionError = 'No pudimos encontrar lo que estabas buscando.';
-    $urlVolver = url('/');
-    $textoVolver = 'Volver al inicio';
-
-    require __DIR__ . '/../views/errors/error.php';
-
-    exit;
+    exit('Acceso restringido al administrador.');
 }
-
-
-// MODELOS
-require_once __DIR__ . '/../config/Database.php';
-require_once __DIR__ . '/../models/Producto.php';
-require_once __DIR__ . '/../models/Usuario.php';
-
 
 $productoModel = new Producto($conn);
-
-$accion = $_POST['accion'] ?? $_GET['accion'] ?? 'admin_productos';
-
-
-// LISTAR
-if ($accion === 'admin_productos' || $accion === 'listar') {
-
-    $productos = $productoModel->obtenerTodos();
-
-    require __DIR__ . '/../views/admin/productos.php';
-
-    exit;
-}
-
-// CLIENTES
-if ($accion === 'clientes') {
-
-    $busqueda = trim($_GET['buscar'] ?? '');
-    $rol = trim($_GET['rol'] ?? 'cliente');
-
-    if (!in_array($rol, ['todos', 'cliente', 'empleado', 'admin'], true)) {
-        $rol = 'cliente';
-    }
-
-    $usuarioModel = new Usuario($conn);
-    $clientes = $usuarioModel->obtenerClientes($busqueda, $rol);
-
-    require __DIR__ . '/../views/admin/clientes.php';
-
-    exit;
-}
-
-
-// GESTIONAR ROLES
-if ($accion === 'roles') {
-
-    require __DIR__ . '/../views/admin/roles.php';
-
-    exit;
-}
-
-
-// BUSCAR USUARIO PARA GESTIÓN DE ROLES
-if ($accion === 'buscar_usuario_rol') {
-
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
-        http_response_code(405);
-
-        exit('Método no permitido.');
-    }
-
-
-    // VERIFICAR CSRF
-    verificar_csrf();
-
-
-    // OBTENER CORREO
-    $correo =
-        trim($_POST['correo'] ?? '');
-
-
-    if ($correo === '') {
-
-        exit('El correo electrónico es obligatorio.');
-    }
-
-
-    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-
-        exit('El correo electrónico no es válido.');
-    }
-
-
-    // BUSCAR USUARIO
-    $usuarioModel = new Usuario($conn);
-
-    $usuario = $usuarioModel->obtenerPorEmail($correo);
-
-    if (!$usuario) {
-
-        exit('No se encontró ningún usuario con ese correo electrónico.');
-    }
-
-
-    // MOSTRAR VISTA DE ROLES
-    require __DIR__ . '/../views/admin/roles.php';
-
-    exit;
-}
-
-// ACTUALIZAR ROL DE USUARIO
-if ($accion === 'actualizar_rol') {
-
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
-        http_response_code(405);
-
-        exit('Método no permitido.');
-    }
-
-    verificar_csrf();
-
-    $usuarioId =
-        (int) ($_POST['usuario_id'] ?? 0);
-
-    $rol =
-        trim($_POST['rol'] ?? '');
-
-    // VALIDAR USUARIO
-    if ($usuarioId <= 0) {
-
-        exit('Usuario no válido.');
-    }
-
-    // VALIDAR ROL
-    $rolesPermitidos = [
-        'cliente',
-        'empleado',
-        'admin'
-    ];
-
-    if (!in_array($rol, $rolesPermitidos, true)) {
-
-        exit('El rol seleccionado no es válido.');
-    }
-
-    // COMPROBAR QUE EL USUARIO EXISTA
-    $usuarioModel = new Usuario($conn);
-
-    $usuario =
-        $usuarioModel->obtenerPorId($usuarioId);
-
-    if (!$usuario) {
-
-        http_response_code(404);
-
-        exit('El usuario no existe.');
-    }
-
-    // EVITAR CAMBIARSE EL PROPIO ROL
-    if ($usuarioId === (int) $_SESSION['usuario_id']) {
-
-        exit('No podés modificar tu propio rol.');
-    }
-
-    // ACTUALIZAR ROL
-    if (!$usuarioModel->actualizarRol($usuarioId, $rol)) {
-
-        exit('No se pudo actualizar el rol del usuario.');
-    }
-
-    // VOLVER A LA GESTIÓN DE ROLES
-    header(
-        'Location: ' . url('/admin/roles')
-    );
-
-    exit;
-}
-
-
-// CREAR
-if ($accion === 'crear') {
-
-    $categorias = $productoModel->obtenerCategorias();
-
-    require __DIR__ . '/../views/admin/productos-form.php';
-
-    exit;
-}
-
-
-// GUARDAR
-if ($accion === 'guardar') {
-
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
-        header(
-               'Location: ' . url('/admin/productos')
-        );
-
+$accion = $_POST['accion'] ?? $_GET['accion'] ?? 'listar';
+$error = '';
+
+// Validar y guardar los datos recibidos del formulario.
+if ($accion === 'guardar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = (int) ($_POST['id'] ?? 0);
+    $nombre = trim($_POST['nombre'] ?? '');
+    $descripcion = trim($_POST['descripcion'] ?? '');
+    $precio = filter_var($_POST['precio'] ?? '', FILTER_VALIDATE_FLOAT);
+    $stock = filter_var($_POST['stock'] ?? '', FILTER_VALIDATE_INT);
+    $productoActual = $id > 0 ? $productoModel->obtenerPorId($id) : null;
+    $imagen = basename($productoActual['imagen'] ?? '');
+    $producto = compact('id', 'nombre', 'descripcion', 'precio', 'stock', 'imagen');
+
+    if ($nombre === '' || $precio === false || $precio < 0 || $stock === false || $stock < 0) {
+        $error = 'Revisa nombre, precio y stock.';
+        require __DIR__ . '/../views/admin/producto-form.php';
         exit;
     }
 
+    $archivo = $_FILES['imagen'] ?? null;
+    $errorCarga = $archivo['error'] ?? UPLOAD_ERR_NO_FILE;
+    $rutaSubida = null;
 
-    verificar_csrf();
-
-
-    $nombre =
-        trim($_POST['nombre'] ?? '');
-
-    $descripcion =
-        trim($_POST['descripcion'] ?? '');
-
-    $precio =
-        $_POST['precio'] ?? '';
-
-    $categoriaId =
-        (int) ($_POST['categoria_id'] ?? 0);
-
-    $stock =
-        filter_var(
-            $_POST['stock'] ?? null,
-            FILTER_VALIDATE_INT
-        );
-
-    $unidadVenta = trim($_POST['unidad_venta'] ?? 'unidad');
-    $unidadesPermitidas = ['unidad', 'docena', 'media docena', 'kilogramo'];
-
-
-    // VALIDAR DATOS
-    if (
-        $nombre === '' ||
-        $precio === '' ||
-        $categoriaId <= 0 ||
-        $stock === false ||
-        $stock < 0 ||
-        !in_array($unidadVenta, $unidadesPermitidas, true)
-    ) {
-
-        exit('Faltan datos obligatorios.');
-    }
-
-
-    // COMPROBAR IMAGEN
-    if (!isset($_FILES['imagen'])) {
-
-        exit('No se recibió ninguna imagen.');
-    }
-
-
-    if ($_FILES['imagen']['error'] !== UPLOAD_ERR_OK) {
-
-        exit('Error al subir imagen. Código: '
-            . $_FILES['imagen']['error']);
-    }
-
-
-    $archivo = $_FILES['imagen'];
-
-
-    // CARPETA
-    $carpeta =
-        __DIR__ . '/../public/img/';
-
-
-    if (!is_dir($carpeta)) {
-
-        if (!mkdir($carpeta, 0755, true)) {
-
-            exit('No se pudo crear la carpeta public/img.');
+    if ($errorCarga === UPLOAD_ERR_NO_FILE) {
+        if ($id === 0) {
+            $error = 'Selecciona una imagen para el producto.';
         }
-    }
-
-
-    if (!is_writable($carpeta)) {
-
-        exit('La carpeta public/img no tiene permisos de escritura.');
-    }
-
-
-    // VALIDAR IMAGEN
-    $tipo =
-        mime_content_type(
-            $archivo['tmp_name']
-        );
-
-
-    if ((int) $archivo['size'] > 5 * 1024 * 1024) {
-
-        exit('La imagen no puede superar los 5 MB.');
-    }
-
-
-    $dimensiones =
-        @getimagesize(
-            $archivo['tmp_name']
-        );
-
-
-    if (
-        !$dimensiones ||
-        $dimensiones[0] > 5000 ||
-        $dimensiones[1] > 5000
-    ) {
-
-        exit('Las dimensiones de la imagen no son válidas.');
-    }
-
-
-    $tiposPermitidos = [
-
-        'image/jpeg' => 'jpg',
-        'image/png'  => 'png',
-        'image/webp' => 'webp'
-
-    ];
-
-
-    if (!isset($tiposPermitidos[$tipo])) {
-
-        exit('Formato de imagen no permitido. Tipo detectado: '
-            . htmlspecialchars($tipo));
-    }
-
-
-    // NOMBRE DE IMAGEN
-    $extension =
-        $tiposPermitidos[$tipo];
-
-
-    $nombreImagen =
-        uniqid('producto_', true)
-        . '.'
-        . $extension;
-
-
-    $rutaDestino =
-        $carpeta . $nombreImagen;
-
-
-    // GUARDAR IMAGEN
-    if (
-        !move_uploaded_file(
-            $archivo['tmp_name'],
-            $rutaDestino
-        )
-    ) {
-
-        exit('No se pudo guardar la imagen.<br><br>'
-            . 'Ruta: '
-            . htmlspecialchars($rutaDestino));
-    }
-
-
-    // GUARDAR PRODUCTO
-    $resultado =
-        $productoModel->crear(
-            $nombre,
-            $descripcion,
-            $precio,
-            $categoriaId,
-            $nombreImagen,
-            $unidadVenta,
-            $stock
-        );
-
-
-    if (!$resultado) {
-
-        if (file_exists($rutaDestino)) {
-
-            unlink($rutaDestino);
-        }
-
-        exit('No se pudo guardar el producto en la base de datos.');
-    }
-
-
-    header(
-           'Location: ' . url('/admin/productos')
-    );
-
-    exit;
-}
-
-
-// EDITAR
-if ($accion === 'editar') {
-
-    $id =
-        (int) ($_GET['id'] ?? 0);
-
-
-    if ($id <= 0) {
-
-        exit('Producto no válido.');
-    }
-
-
-    $producto =
-        $productoModel->obtenerPorId($id);
-
-
-    if (!$producto) {
-
-        http_response_code(404);
-
-        $codigoError = 404;
-        $tituloError = 'Producto no encontrado';
-        $descripcionError = 'El producto que buscás ya no está disponible.';
-        $urlVolver = url('/productos');
-        $textoVolver = 'Volver al catálogo';
-
-        require __DIR__ . '/../views/errors/error.php';
-
-        exit;
-    }
-
-
-    $categorias =
-        $productoModel->obtenerCategorias();
-
-
-    require __DIR__ . '/../views/admin/productos-form.php';
-
-    exit;
-}
-
-
-// ACTUALIZAR
-if ($accion === 'actualizar') {
-
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
-        header(
-               'Location: ' . url('/admin/productos')
-        );
-
-        exit;
-    }
-
-
-    verificar_csrf();
-
-
-    $id =
-        (int) ($_POST['id'] ?? 0);
-
-    $nombre =
-        trim($_POST['nombre'] ?? '');
-
-    $descripcion =
-        trim($_POST['descripcion'] ?? '');
-
-    $precio =
-        $_POST['precio'] ?? '';
-
-    $categoriaId =
-        (int) ($_POST['categoria_id'] ?? 0);
-
-    $activo =
-        (int) ($_POST['activo'] ?? 1);
-
-    $stock =
-        filter_var(
-            $_POST['stock'] ?? null,
-            FILTER_VALIDATE_INT
-        );
-
-    $unidadVenta = trim($_POST['unidad_venta'] ?? 'unidad');
-    $unidadesPermitidas = ['unidad', 'docena', 'media docena', 'kilogramo'];
-
-
-    // VALIDAR DATOS
-    if (
-        $id <= 0 ||
-        $nombre === '' ||
-        $precio === '' ||
-        $categoriaId <= 0 ||
-        $stock === false ||
-        $stock < 0 ||
-        !in_array($unidadVenta, $unidadesPermitidas, true)
-    ) {
-
-        exit('Datos inválidos.');
-    }
-
-
-    // OBTENER PRODUCTO ACTUAL
-    $productoActual =
-        $productoModel->obtenerPorId($id);
-
-
-    if (!$productoActual) {
-
-        http_response_code(404);
-
-        $codigoError = 404;
-        $tituloError = 'Producto no encontrado';
-        $descripcionError = 'El producto que buscás ya no está disponible.';
-        $urlVolver = url('/admin/productos');
-        $textoVolver = 'Volver a productos';
-
-        require __DIR__ . '/../views/errors/error.php';
-
-        exit;
-    }
-
-
-    // MANTENER IMAGEN ACTUAL
-    $imagen =
-        $productoActual['imagen'];
-
-
-    $carpeta =
-        __DIR__ . '/../public/img/';
-
-
-    // NUEVA IMAGEN
-    if (
-        isset($_FILES['imagen']) &&
-        $_FILES['imagen']['error'] === UPLOAD_ERR_OK
-    ) {
-
-        $archivo =
-            $_FILES['imagen'];
-
-
-        $tipo =
-            mime_content_type(
-                $archivo['tmp_name']
-            );
-
-
-        if ((int) $archivo['size'] > 5 * 1024 * 1024) {
-
-            exit('La imagen no puede superar los 5 MB.');
-        }
-
-
-        $dimensiones =
-            @getimagesize(
-                $archivo['tmp_name']
-            );
-
-
-        if (
-            !$dimensiones ||
-            $dimensiones[0] > 5000 ||
-            $dimensiones[1] > 5000
-        ) {
-
-            exit('Las dimensiones de la imagen no son válidas.');
-        }
-
-
+    } elseif ($errorCarga !== UPLOAD_ERR_OK) {
+        $error = 'No se pudo recibir la imagen. Intenta con un archivo de hasta 5 MB.';
+    } elseif (($archivo['size'] ?? 0) > 5 * 1024 * 1024) {
+        $error = 'La imagen debe pesar menos de 5 MB.';
+    } else {
         $tiposPermitidos = [
-
             'image/jpeg' => 'jpg',
-            'image/png'  => 'png',
-            'image/webp' => 'webp'
-
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/avif' => 'avif'
         ];
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $tipoImagen = $finfo->file($archivo['tmp_name']);
 
+        if (!isset($tiposPermitidos[$tipoImagen])) {
+            $error = 'El archivo debe ser una imagen JPG, PNG, WEBP o AVIF.';
+        } else {
+            $nombreArchivo = 'producto_' . bin2hex(random_bytes(16)) . '.' . $tiposPermitidos[$tipoImagen];
+            $rutaSubida = __DIR__ . '/../public/img/' . $nombreArchivo;
 
-        if (!isset($tiposPermitidos[$tipo])) {
-
-            exit('Formato de imagen no permitido.');
-        }
-
-
-        if (!is_dir($carpeta)) {
-
-            if (!mkdir($carpeta, 0755, true)) {
-
-                exit('No se pudo crear la carpeta public/img.');
+            if (!move_uploaded_file($archivo['tmp_name'], $rutaSubida)) {
+                $rutaSubida = null;
+                $error = 'No se pudo guardar la imagen. Revisa los permisos de public/img.';
+            } else {
+                $imagen = $nombreArchivo;
+                $producto['imagen'] = $imagen;
             }
         }
-
-
-        if (!is_writable($carpeta)) {
-
-            exit('La carpeta public/img no tiene permisos de escritura.');
-        }
-
-
-        $extension =
-            $tiposPermitidos[$tipo];
-
-
-        $nuevaImagen =
-            uniqid('producto_', true)
-            . '.'
-            . $extension;
-
-
-        $rutaDestino =
-            $carpeta . $nuevaImagen;
-
-
-        if (
-            !move_uploaded_file(
-                $archivo['tmp_name'],
-                $rutaDestino
-            )
-        ) {
-
-            exit('No se pudo guardar la nueva imagen.');
-        }
-
-
-        $imagen =
-            $nuevaImagen;
     }
 
-
-    // ACTUALIZAR BASE DE DATOS
-    $resultado =
-        $productoModel->actualizar(
-            $id,
-            $nombre,
-            $descripcion,
-            $precio,
-            $categoriaId,
-            $imagen,
-            $unidadVenta,
-            $activo,
-            $stock
-        );
-
-
-    if (!$resultado) {
-
-        if (
-            isset($rutaDestino) &&
-            file_exists($rutaDestino)
-        ) {
-
-            unlink($rutaDestino);
-        }
-
-        exit('No se pudo actualizar el producto.');
-    }
-
-
-    // ELIMINAR IMAGEN ANTERIOR
-    if (
-        !empty($nuevaImagen) &&
-        !empty($productoActual['imagen'])
-    ) {
-
-        $rutaAnterior =
-            $carpeta . $productoActual['imagen'];
-
-
-        if (file_exists($rutaAnterior)) {
-
-            unlink($rutaAnterior);
-        }
-    }
-
-
-    header(
-           'Location: ' . url('/admin/productos')
-    );
-
-    exit;
-}
-
-
-// DESACTIVAR
-if ($accion === 'desactivar') {
-
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
-        http_response_code(405);
-
-        exit('Método no permitido.');
-    }
-
-
-    verificar_csrf();
-
-
-    $id =
-        (int) ($_POST['id'] ?? 0);
-
-
-    if ($id <= 0) {
-
-        exit('Producto no válido.');
-    }
-
-
-    if (
-        !$productoModel->desactivar($id)
-    ) {
-
-        exit('No se pudo desactivar el producto.');
-    }
-
-
-    header(
-           'Location: ' . url('/admin/productos')
-    );
-
-    exit;
-}
-
-
-// ACTIVAR
-if ($accion === 'activar') {
-
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
-        http_response_code(405);
-
-        exit('Método no permitido.');
-    }
-
-
-    verificar_csrf();
-
-
-    $id =
-        (int) ($_POST['id'] ?? 0);
-
-
-    if ($id <= 0) {
-
-        exit('Producto no válido.');
-    }
-
-
-    if (
-        !$productoModel->activar($id)
-    ) {
-
-        exit('No se pudo activar el producto.');
-    }
-
-
-    header(
-           'Location: ' . url('/admin/productos')
-    );
-
-    exit;
-}
-
-
-// ELIMINAR PRODUCTO DEFINITIVAMENTE
-if ($accion === 'eliminar') {
-
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
-        http_response_code(405);
-
-        exit('Método no permitido.');
-    }
-
-
-    verificar_csrf();
-
-
-    $id =
-        (int) ($_POST['id'] ?? 0);
-
-
-    if ($id <= 0) {
-
-        exit('Producto no válido.');
-    }
-
-
-    // OBTENER PRODUCTO
-    $producto =
-        $productoModel->obtenerPorId($id);
-
-
-    if (!$producto) {
-
-        http_response_code(404);
-
-        $codigoError = 404;
-        $tituloError = 'Producto no encontrado';
-        $descripcionError = 'El producto que buscás ya no está disponible.';
-        $urlVolver = url('/admin/productos');
-        $textoVolver = 'Volver a productos';
-
-        require __DIR__ . '/../views/errors/error.php';
-
+    if ($error !== '') {
+        require __DIR__ . '/../views/admin/producto-form.php';
         exit;
     }
 
-
-    // ELIMINAR DE LA BASE DE DATOS
-    if (
-        !$productoModel->eliminar($id)
-    ) {
-
-        exit('No se pudo eliminar el producto.');
-    }
-
-
-    // ELIMINAR IMAGEN
-    if (!empty($producto['imagen'])) {
-
-        $rutaImagen =
-            __DIR__
-            . '/../public/img/'
-            . $producto['imagen'];
-
-
-        if (file_exists($rutaImagen)) {
-
-            unlink($rutaImagen);
+    if (!$productoModel->guardar($id, $nombre, $descripcion, $precio, $stock, $imagen)) {
+        if ($rutaSubida !== null && is_file($rutaSubida)) {
+            unlink($rutaSubida);
         }
+        $error = 'No se pudo guardar el producto.';
+        require __DIR__ . '/../views/admin/producto-form.php';
+        exit;
     }
 
-
-    // VOLVER A PRODUCTOS
-    header(
-        'Location: ' . url('/admin/productos')
-    );
-
+    header('Location: ' . url('/admin/productos'));
     exit;
 }
 
+// Un producto enlazado a pedidos históricos no se elimina.
+if ($accion === 'eliminar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$productoModel->eliminar((int) ($_POST['id'] ?? 0))) {
+        $error = 'No se puede eliminar un producto incluido en pedidos existentes.';
+    }
+}
 
-// ACCIÓN NO EXISTENTE
-http_response_code(404);
+// Mostrar el formulario vacío o cargar los datos del producto a editar.
+if ($accion === 'nuevo' || $accion === 'editar') {
+    $producto = $accion === 'editar'
+        ? $productoModel->obtenerPorId((int) ($_GET['id'] ?? 0))
+        : null;
+    require __DIR__ . '/../views/admin/producto-form.php';
+    exit;
+}
 
-echo 'Acción no encontrada.';
+$productos = $productoModel->obtenerTodos();
+require __DIR__ . '/../views/admin/productos.php';
