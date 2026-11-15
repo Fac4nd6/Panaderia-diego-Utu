@@ -54,7 +54,7 @@ INSERT INTO `pedidos` (`id`, `nombre_cliente`, `telefono`, `fecha_retiro`, `fech
 CREATE TABLE `pedido_detalles` (
   `id` int(10) UNSIGNED NOT NULL,
   `pedido_id` int(10) UNSIGNED NOT NULL,
-  `producto_id` int(10) UNSIGNED NOT NULL,
+  `producto_id` int(10) UNSIGNED DEFAULT NULL,
   `nombre_producto` varchar(150) NOT NULL,
   `cantidad` smallint(5) UNSIGNED NOT NULL,
   `precio_unitario` decimal(10,2) NOT NULL,
@@ -198,7 +198,7 @@ ALTER TABLE `usuarios`
 --
 ALTER TABLE `pedido_detalles`
   ADD CONSTRAINT `fk_detalle_pedido` FOREIGN KEY (`pedido_id`) REFERENCES `pedidos` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_detalle_producto` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
+  ADD CONSTRAINT `fk_detalle_producto` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`) ON DELETE SET NULL;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

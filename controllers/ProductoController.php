@@ -88,10 +88,39 @@ if ($accion === 'guardar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Un producto enlazado a pedidos históricos no se elimina.
+// El borrado definitivo conserva las líneas históricas del pedido.
 if ($accion === 'eliminar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$productoModel->eliminar((int) ($_POST['id'] ?? 0))) {
-        $error = 'No se puede eliminar un producto incluido en pedidos existentes.';
+    $id = (int) ($_POST['id'] ?? 0);
+    $imagen = $productoModel->eliminarDefinitivamente($id);
+
+    if ($imagen === false) {
+        $error = 'No se pudo eliminar. Verifica que la migracion de la base de datos este aplicada.';
+    } else {
+        if (
+            preg_match('/^producto_[a-f0-9]{32}\\.(jpg|png|webp|avif)$/i', $imagen) &&
+            !$productoModel->imagenEnUso($imagen)
+        ) {
+            $rutaImagen = __DIR__ . '/../public/img/' . $imagen;
+            if (is_file($rutaImagen)) {
+                unlink($rutaImagen);
+            }
+        }
+
+        header('Location: ' . url('/admin/productos'));
+        exit;
+    }
+}
+
+// Los productos se desactivan para conservar las referencias de pedidos históricos.
+if ($accion === 'estado' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = (int) ($_POST['id'] ?? 0);
+    $activo = $_POST['activo'] ?? '';
+
+    if ($id < 1 || !in_array($activo, ['0', '1'], true) || !$productoModel->cambiarEstado($id, (int) $activo)) {
+        $error = 'No se pudo actualizar el estado del producto.';
+    } else {
+        header('Location: ' . url('/admin/productos'));
+        exit;
     }
 }
 

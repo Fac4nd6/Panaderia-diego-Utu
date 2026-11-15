@@ -38,6 +38,8 @@ No incluye carrito de compras.
 4. En phpMyAdmin, abre la pestaña **Importar**, selecciona `database/don_diego.sql` y ejecútalo. El archivo crea la base `don_diego_simple`, sus tablas y productos iniciales.
 5. Revisa `config/Database.php`. La configuracion inicial usa el servidor `localhost`, el usuario `root`, contraseña vacia y la base `don_diego_simple`. Cambia usuario o contraseña si tu instalacion de MySQL usa otros datos.
 
+Si la base ya estaba creada antes de agregar el borrado definitivo de productos, selecciona `don_diego_simple` en phpMyAdmin, abre la pestaña **SQL** y ejecuta el contenido de `database/migracion_producto_set_null.sql`.
+
 ## Configuracion del correo
 
 Configura estas variables de entorno en el proceso que ejecuta Apache/PHP. La clave API y la dirección remitente no deben guardarse en el código fuente.

@@ -38,9 +38,14 @@ require __DIR__ . '/../header.php';
                     <td><?= (int) $producto['stock'] ?></td>
                     <td class="actions product-actions">
                         <a class="product-action-edit" href="<?= url('/admin/productos/editar?id=' . (int) $producto['id']) ?>">Editar</a>
-                        <form method="post" action="<?= url('/admin/productos/eliminar') ?>">
+                        <form method="post" action="<?= url('/admin/productos/estado') ?>">
                             <input type="hidden" name="id" value="<?= (int) $producto['id'] ?>">
-                            <button class="product-action-delete" type="submit">Eliminar</button>
+                            <input type="hidden" name="activo" value="<?= (int) $producto['activo'] ? '0' : '1' ?>">
+                            <button class="product-action-delete" type="submit"><?= (int) $producto['activo'] ? 'Desactivar' : 'Activar' ?></button>
+                        </form>
+                        <form method="post" action="<?= url('/admin/productos/eliminar') ?>" onsubmit="return confirm('¿Eliminar definitivamente este producto? Los pedidos anteriores conservarán su detalle, pero no se puede deshacer.')">
+                            <input type="hidden" name="id" value="<?= (int) $producto['id'] ?>">
+                            <button class="product-action-delete" type="submit">Eliminar definitivamente</button>
                         </form>
                     </td>
                 </tr>

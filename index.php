@@ -22,7 +22,8 @@ $paginas = [
     'producto-nuevo' => ['ProductoController.php', 'nuevo'],
     'producto-editar' => ['ProductoController.php', 'editar'],
     'producto-guardar' => ['ProductoController.php', 'guardar'],
-    'producto-eliminar' => ['ProductoController.php', 'eliminar']
+    'producto-eliminar' => ['ProductoController.php', 'eliminar'],
+    'producto-estado' => ['ProductoController.php', 'estado']
 ];
 
 // El catálogo es la entrada principal cuando no se indica una página.

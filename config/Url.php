@@ -33,7 +33,8 @@ if (!function_exists('url')) {
             '/admin/productos/nuevo' => 'producto-nuevo',
             '/admin/productos/editar' => 'producto-editar',
             '/admin/productos/guardar' => 'producto-guardar',
-            '/admin/productos/eliminar' => 'producto-eliminar'
+            '/admin/productos/eliminar' => 'producto-eliminar',
+            '/admin/productos/estado' => 'producto-estado'
         ];
 
         $base = rtrim($basePath, '/');
